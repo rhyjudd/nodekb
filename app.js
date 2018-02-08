@@ -12,6 +12,8 @@ const flash = require('connect-flash');
 const session = require('express-session');
 
 
+
+
 //connecting mongodb to our app
 mongoose.connect('mongodb://localhost/nodekb');
 let db = mongoose.connection;
@@ -49,9 +51,9 @@ app.use(express.static(path.join(__dirname, 'public')))
 // Express-session middleware
 app.use(session({
     secret: 'keyboard cat',
-    resave: false,
+    resave: true,
     saveUninitialized: true,
-    cookie: { secure: true }
+    
   }))
 
 //Express-messages middleware
@@ -60,6 +62,7 @@ app.use(function (req, res, next) {
   res.locals.messages = require('express-messages')(req, res);
   next();
 });
+
 
 // Express Validator Middleware
 app.use(expressValidator({
@@ -124,25 +127,44 @@ app.get('/articles/add', (req, res) => res.render('add_article',{
 
 //Add Submit POST route
 app.post('/articles/add', function(req, res){
-    let article = new Article();
-    article.title = req.body.title;
-    console.log(req.body.title);
-    article.author = req.body.author;
-    console.log(req.body.author);
-    article.body = req.body.text;
-    console.log(req.body.text);
 
-    article.save(function(err){
-        if(err){
-            conosle.log(err);
-            return;
-        } else {
-            res.redirect('/');
-        }
-    })
+    req.checkBody('title', 'title is required').notEmpty;
+    req.checkBody('author', 'author is required').notEmpty;
+    req.checkBody('body', 'body is required').notEmpty;
+
+    //get errors
+    let errors = req.validationErrors();
+
+    if(errors){
+        res.render('add/article', {
+            title:'Add Article',
+            errors: errors
+        })
+    }else{
+        let article = new Article();
+
+        article.title = req.body.title;
+        
+        article.author = req.body.author;
+        
+        article.body = req.body.text;
+        
+
+        article.save(function(err){
+            if(err){
+                console.log(err);
+                return;
+            } else {
+                req.flash('success', 'article added');
+                res.redirect('/');
+            }
+        })
+    }
+
+    
 });
 
-//Add Submit POST route
+//Add update POST route
 app.post('/articles/edit/:id', function(req, res){
     let article = {};
     article.title = req.body.title;
@@ -158,6 +180,7 @@ app.post('/articles/edit/:id', function(req, res){
             conosle.log(err);
             return;
         } else {
+            req.flash('success', 'article updated');
             res.redirect('/');
         }
     })
@@ -171,6 +194,7 @@ app.delete('/article/:id', function(req, res){
         if(err){
             console.log(err);
         }
+         
         res.send('success');
     })
 });
